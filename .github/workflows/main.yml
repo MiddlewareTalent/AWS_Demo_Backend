@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  VERSION_PREFIX: "MTL"
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -27,9 +30,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Get next version number
+        id: version
+        run: |
+          # List existing EB versions and extract highest number
+          HIGHEST=$(aws elasticbeanstalk describe-application-versions \
+            --application-name ${{ secrets.EB_APP_NAME }} \
+            --query 'ApplicationVersions[*].VersionLabel' \
+            --output text | grep "${{ env.VERSION_PREFIX }}" | sed 's/[^0-9]*//g' | sort -n | tail -1)
+          
+          # If no versions exist, start at 1, otherwise increment
+          NEXT=$(( ${HIGHEST:-0} + 1 ))
+          echo "version_number=$NEXT" >> $GITHUB_OUTPUT
+          echo "VERSION_LABEL=${{ env.VERSION_PREFIX }}-$NEXT" >> $GITHUB_ENV
+
       - name: Upload JAR to S3
         run: |
-          JAR_NAME=app-${{ github.sha }}.jar
+          JAR_NAME=app-${{ env.VERSION_LABEL }}.jar
           aws s3 cp target/*.jar s3://${{ secrets.S3_BUCKET }}/$JAR_NAME
           echo "JAR_NAME=$JAR_NAME" >> $GITHUB_ENV
 
@@ -37,11 +54,11 @@ jobs:
         run: |
           aws elasticbeanstalk create-application-version \
             --application-name ${{ secrets.EB_APP_NAME }} \
-            --version-label "${{ github.sha }}" \
+            --version-label "${{ env.VERSION_LABEL }}" \
             --source-bundle S3Bucket=${{ secrets.S3_BUCKET }},S3Key=${{ env.JAR_NAME }}
 
       - name: Deploy to Elastic Beanstalk
         run: |
           aws elasticbeanstalk update-environment \
             --environment-name ${{ secrets.EB_ENV_NAME }} \
-            --version-label "${{ github.sha }}"
+            --version-label "${{ env.VERSION_LABEL }}"
