@@ -30,19 +30,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Get next version number
+      - name: Generate version number
         id: version
         run: |
-          # List existing EB versions and extract highest number
-          HIGHEST=$(aws elasticbeanstalk describe-application-versions \
-            --application-name ${{ secrets.EB_APP_NAME }} \
-            --query 'ApplicationVersions[*].VersionLabel' \
-            --output text | grep "${{ env.VERSION_PREFIX }}" | sed 's/[^0-9]*//g' | sort -n | tail -1)
-          
-          # If no versions exist, start at 1, otherwise increment
-          NEXT=$(( ${HIGHEST:-0} + 1 ))
-          echo "version_number=$NEXT" >> $GITHUB_OUTPUT
-          echo "VERSION_LABEL=${{ env.VERSION_PREFIX }}-$NEXT" >> $GITHUB_ENV
+          # Get current timestamp (YYYYMMDDHHMMSS format)
+          TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+          echo "VERSION_LABEL=${{ env.VERSION_PREFIX }}-${TIMESTAMP}" >> $GITHUB_ENV
+          echo "version_number=${TIMESTAMP}" >> $GITHUB_OUTPUT
 
       - name: Upload JAR to S3
         run: |
