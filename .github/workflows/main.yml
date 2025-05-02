@@ -1,4 +1,4 @@
-name: Deploy Spring Boot to AWS
+name: Deploy Spring Boot to AWS cloud
 
 on:
   push:
@@ -30,13 +30,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Generate version number
+      - name: Get and increment version counter
         id: version
         run: |
-          # Get current timestamp (YYYYMMDDHHMMSS format)
-          TIMESTAMP=$(date +"%Y%m%d%H%M%S")
-          echo "VERSION_LABEL=${{ env.VERSION_PREFIX }}-${TIMESTAMP}" >> $GITHUB_ENV
-          echo "version_number=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          # Check if counter file exists in S3
+          if aws s3 ls s3://${{ secrets.S3_BUCKET }}/version_counter.txt; then
+            aws s3 cp s3://${{ secrets.S3_BUCKET }}/version_counter.txt version_counter.txt
+            CURRENT_VERSION=$(cat version_counter.txt)
+            NEXT_VERSION=$((CURRENT_VERSION + 1))
+          else
+            NEXT_VERSION=1
+          fi
+          
+          # Store new version number
+          echo $NEXT_VERSION > version_counter.txt
+          aws s3 cp version_counter.txt s3://${{ secrets.S3_BUCKET }}/version_counter.txt
+          
+          echo "VERSION_LABEL=${{ env.VERSION_PREFIX }}-$NEXT_VERSION" >> $GITHUB_ENV
+          echo "version_number=$NEXT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Upload JAR to S3
         run: |
