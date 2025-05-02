@@ -1,4 +1,4 @@
-name: Deploy Spring Boot to AWS
+name: Deploy Spring Boot to AWS cloud
 
 on:
   push:
