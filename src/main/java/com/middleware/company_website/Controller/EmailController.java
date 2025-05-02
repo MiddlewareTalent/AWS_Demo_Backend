@@ -19,7 +19,7 @@ public class EmailController {
         this.emailService = emailService;
     }
 
-    @PostMapping("/contactss")
+    @PostMapping("/contactsssss")
     public String saveContactUs(@RequestBody ContactUs contactUs) {
         emailService.sendContactUsEmail("ksekhar@middlewaretalents.com", contactUs);
         return "Contact form submitted successfully!";
